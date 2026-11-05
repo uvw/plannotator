@@ -296,10 +296,14 @@ describe("resolveReferenceLinks — owner review fixups (PR #1168)", () => {
     }
   });
 
-  test("aligns tilde-fence handling with the block parser (neither treats ~~~ as a code fence)", () => {
-    const md = "~~~\n[a][b]\n~~~\n\n[b]: https://e.com";
-    expect(parseMarkdownToBlocks(md).some((b) => b.type === "code")).toBe(false);
-    expect(resolveReferenceLinks(md)).toBe("~~~\n[a](https://e.com)\n~~~\n\n");
+  test("aligns tilde-fence handling with the block parser (both treat ~~~ as a code fence, as they treat ```)", () => {
+    const tilde = "~~~\n[a][b]\n~~~\n\n[b]: https://e.com";
+    const backtick = tilde.replaceAll("~~~", "```");
+    expect(parseMarkdownToBlocks(tilde).map((b) => [b.type, b.content])).toEqual(parseMarkdownToBlocks(backtick).map((b) => [b.type, b.content]));
+    expect(parseMarkdownToBlocks(tilde)[0].type).toBe("code");
+    // The reference inside the fence is code, left as written.
+    expect(resolveReferenceLinks(tilde)).toBe(resolveReferenceLinks(backtick).replaceAll("```", "~~~"));
+    expect(resolveReferenceLinks(tilde)).toContain("[a][b]");
   });
 
   test("resolves a destination containing a closing parenthesis", () => {
@@ -1146,6 +1150,18 @@ describe("parseMarkdownToBlocks — GitHub alerts", () => {
     const blocks = parseMarkdownToBlocks(md);
     expect(blocks).toHaveLength(1);
     expect(blocks[0].content).toBe("- install:\n\n  ```bash\n  bun install\n  ```");
+  });
+
+  test("a tilde fence is a code block with its language, and backticks inside it are content", () => {
+    const blocks = parseMarkdownToBlocks("~~~yaml\nkey: ```\n~~~\nafter");
+    expect(blocks.map((b) => [b.type, b.content, b.language])).toEqual([
+      ["code", "key: ```", "yaml"],
+      ["paragraph", "after", undefined],
+    ]);
+  });
+
+  test("strikethrough text is not a fence", () => {
+    expect(parseMarkdownToBlocks("~~gone~~ and kept")[0].type).toBe("paragraph");
   });
 
   test("blockquote without marker has no alertKind", () => {

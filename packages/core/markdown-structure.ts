@@ -131,12 +131,11 @@ const normalizeRefLabel = (label: string): string =>
  * uses (not a looser approximation), so the two can never disagree about
  * where code/HTML starts and ends:
  *
- * - Fences: `trimmed.startsWith('```')` after a full `.trim()` — the block
- *   parser has no minimum-indent exemption, so ANY indentation (a fence
- *   nested inside a list item, or simply indented 4+ spaces) still opens a
- *   code block, and this must too. Only backtick fences are recognized —
- *   the block parser has no `~~~` support, so this doesn't either (a `~~~`
- *   line is ordinary text to both).
+ * - Fences: `codeFenceOpen`, three or more backticks or tildes after a full
+ *   `.trim()` — the block parser has no minimum-indent exemption, so ANY
+ *   indentation (a fence nested inside a list item, or simply indented 4+
+ *   spaces) still opens a code block, and this must too. A fence closes on
+ *   a run of its own character at least as long (`codeFenceCloseIndex`).
  * - Raw HTML blocks: the same `HTML_BLOCK_OPEN_RE`/`HTML_BLOCK_TAGS`/
  *   `VOID_HTML_TAGS` the block parser uses, with the same three extents
  *   (blank-line termination for a leading close tag, single-line for void
@@ -248,17 +247,17 @@ export function findHtmlBlockEnd(
 
 export const markProtectedLines = (lines: string[]): boolean[] => {
   const isProtected = new Array<boolean>(lines.length).fill(false);
-  let fenceLen = 0; // 0 = not currently inside a fence
+  let fence: { char: '`' | '~'; length: number } | null = null;
   const closeCache = new Map<string, TagCloseIndex>();
   for (let i = 0; i < lines.length; i++) {
-    if (fenceLen > 0) {
+    if (fence) {
       isProtected[i] = true;
-      if (new RegExp('^\\s*`{' + fenceLen + ',}').test(lines[i])) fenceLen = 0;
+      if (closesFence(lines[i], fence)) fence = null;
       continue;
     }
-    const trimmed = lines[i].trim();
-    if (trimmed.startsWith('```')) {
-      fenceLen = trimmed.match(/^`+/)![0].length;
+    const open = codeFenceOpen(lines[i]);
+    if (open) {
+      fence = open;
       isProtected[i] = true;
       continue;
     }
@@ -306,17 +305,30 @@ export function htmlBlockEndAt(lines: string[], i: number, closeCache: Map<strin
 }
 
 /**
- * The index of the line that closes the backtick code fence opened at line
- * `i` (a run of at least as many backticks, any indentation), or
- * `lines.length` when the fence never closes and runs to the end. Only
- * backtick fences exist for this parser; `~~~` is ordinary text.
+ * The code fence `line` opens, after a full `.trim()`: three or more
+ * backticks or three or more tildes, then the info string (its language
+ * first). Null for any other line.
+ */
+export function codeFenceOpen(line: string): { char: '`' | '~'; length: number; info: string } | null {
+  const m = /^(`{3,}|~{3,})(.*)$/.exec(line.trim());
+  return m ? { char: m[1][0] as '`' | '~', length: m[1].length, info: m[2].trim() } : null;
+}
+
+/** Whether `line` closes `fence`: a run of the same character at least as long, any indentation. */
+function closesFence(line: string, fence: { char: '`' | '~'; length: number }): boolean {
+  return new RegExp(`^\\s*${fence.char === '`' ? '`' : '~'}{${fence.length},}`).test(line);
+}
+
+/**
+ * The index of the line that closes the code fence opened at line `i` (a run
+ * of at least as many of the same character, backticks or tildes, any
+ * indentation), or `lines.length` when the fence never closes and runs to
+ * the end.
  */
 export function codeFenceCloseIndex(lines: string[], i: number): number {
-  const trimmed = lines[i].trim();
-  const fenceLen = trimmed.match(/^`+/)?.[0].length ?? 3;
-  const closingFence = new RegExp('^\\s*`{' + fenceLen + ',}');
+  const fence = codeFenceOpen(lines[i]) ?? { char: '`' as const, length: 3 };
   let j = i + 1;
-  while (j < lines.length && !closingFence.test(lines[j])) j++;
+  while (j < lines.length && !closesFence(lines[j], fence)) j++;
   return j;
 }
 

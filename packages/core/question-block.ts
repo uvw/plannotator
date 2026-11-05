@@ -114,6 +114,7 @@ import { stripInlineMarkup } from "./inline-markdown";
 import {
   DIRECTIVE_OPEN_RE,
   codeFenceCloseIndex,
+  codeFenceOpen,
   directiveCloseIndex,
   htmlBlockEndAt,
   resolveReferenceLinks,
@@ -1383,7 +1384,7 @@ function walkTopLevelLines(
   // start with a different character, and the splitter tests them first.
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
-    if (trimmed.startsWith('```')) {
+    if (codeFenceOpen(trimmed)) {
       i = codeFenceCloseIndex(lines, i);
       continue;
     }

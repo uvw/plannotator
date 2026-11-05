@@ -23,7 +23,7 @@
  * Pure: no I/O, no clock unless passed in. Never throws on any input.
  */
 
-import { resolveReferenceLinks } from "./markdown-structure";
+import { codeFenceOpen, resolveReferenceLinks } from "./markdown-structure";
 import { cutText } from "./text-cut";
 // The grapheme-safe cuts, re-exported here: core's export map is checked against the published package, and the Inbox is what uses them.
 export { cutText, sliceText } from "./text-cut";
@@ -967,7 +967,7 @@ export function deriveInboxSubject(body: string, questions: readonly Pick<Parsed
 function firstLine(body: string): string | null {
   for (const raw of body.split("\n")) {
     const line = raw.trim();
-    if (line && !line.startsWith(":::") && !line.startsWith("```")) return line;
+    if (line && !line.startsWith(":::") && !codeFenceOpen(line)) return line;
   }
   return null;
 }

@@ -22,7 +22,7 @@
  */
 
 import { isInboxId, type InboxAuthor } from "./inbox-types";
-import { codeFenceCloseIndex } from "./markdown-structure";
+import { codeFenceCloseIndex, codeFenceOpen } from "./markdown-structure";
 
 export interface InboxInitiative {
   /** `ini_` + ULID. */
@@ -172,7 +172,7 @@ function withoutCode(text: string): string {
     prose = [];
   };
   for (let i = 0; i < lines.length; i++) {
-    if (!/^\s*```/.test(lines[i]!)) {
+    if (!codeFenceOpen(lines[i]!)) {
       prose.push(lines[i]!);
       continue;
     }

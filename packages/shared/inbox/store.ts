@@ -191,7 +191,7 @@ import {
 } from "@plannotator/core/inbox-types";
 import type { InboxReviewVerdictRecord } from "@plannotator/core/inbox-review";
 import { INBOX_ATTACHMENT_FEEDBACK_TITLE, INBOX_GUIDE_FEEDBACK_TITLE, INBOX_MESSAGE_FEEDBACK_TITLE } from "@plannotator/core/inbox-review";
-import { codeFenceCloseIndex } from "@plannotator/core/markdown-structure";
+import { codeFenceCloseIndex, codeFenceOpen } from "@plannotator/core/markdown-structure";
 import {
   ANNOTATIONS_FILE,
   CARDS_FILE,
@@ -681,7 +681,7 @@ const SEND_APPENDED_HEADINGS: ReadonlySet<string> = new Set([
 function personWords(body: string): string {
   const lines = splitInboxReplyBody(withoutInboxSkillsBlock(body)).words.split("\n");
   for (let i = 0; i < lines.length; i++) {
-    if (/^\s*```/.test(lines[i]!)) {
+    if (codeFenceOpen(lines[i]!)) {
       i = codeFenceCloseIndex(lines, i);
       continue;
     }

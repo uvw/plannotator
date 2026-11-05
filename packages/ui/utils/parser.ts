@@ -17,6 +17,7 @@ import {
   DIRECTIVE_OPEN_RE,
   HTML_BLOCK_TAGS,
   codeFenceCloseIndex,
+  codeFenceOpen,
   directiveCloseIndex,
   htmlBlockEndAt,
   resolveReferenceLinks,
@@ -553,14 +554,14 @@ export const parseMarkdownToBlocks = (markdown: string, options?: ParseMarkdownO
       continue;
     }
     
-    // Code blocks (naive). Count backticks in the opening fence to support
-    // nested fences (e.g. ```` wrapping ```); the extent is shared with core.
-    if (trimmed.startsWith('```')) {
+    // Code blocks: ``` or ~~~, the run's length counted to support nested
+    // fences (e.g. ```` wrapping ```); the extent is shared with core.
+    const fence = codeFenceOpen(trimmed);
+    if (fence) {
       flush();
       const codeStartLine = currentLineNum;
-      const fenceLen = trimmed.match(/^`+/)?.[0].length ?? 3;
-      // Extract language from fence (e.g., ```rust → "rust")
-      const language = trimmed.slice(fenceLen).trim() || undefined;
+      // The language is the info string (```rust → "rust").
+      const language = fence.info || undefined;
       const close = codeFenceCloseIndex(lines, i);
       const codeContent = lines.slice(i + 1, close);
       i = close;
